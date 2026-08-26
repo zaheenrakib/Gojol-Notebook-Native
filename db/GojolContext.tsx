@@ -6,13 +6,19 @@ import { Gojol, GojolInput } from './types';
 interface GojolContextType {
   refreshKey: number;
   refreshDb: () => void;
-  getGojols: (search?: string, category?: string, favoritesOnly?: boolean) => Promise<Gojol[]>;
+  getGojols: (search?: string, category?: string, favoritesOnly?: boolean, approvedOnly?: boolean) => Promise<Gojol[]>;
   getGojolById: (id: number) => Promise<Gojol | null>;
   addGojol: (gojol: GojolInput) => Promise<void>;
   updateGojol: (id: number, gojol: Partial<GojolInput>) => Promise<void>;
   deleteGojol: (id: number) => Promise<void>;
   toggleFavorite: (id: number, isFavorite: boolean) => Promise<void>;
+  approveGojol: (id: number) => Promise<void>;
+  isAdmin: boolean;
+  authenticateAdmin: (passcode: string) => boolean;
+  logoutAdmin: () => void;
   syncData: () => Promise<void>;
+  exportDatabase: () => Promise<string>;
+  importDatabase: (jsonString: string) => Promise<{ success: boolean; count: number }>;
 }
 
 const GojolContext = createContext<GojolContextType | null>(null);
@@ -26,7 +32,7 @@ async function isOnline(): Promise<boolean> {
         'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ''
       }
     });
-    return res.status === 200 || res.status === 401; // 401 means reached database but unauthorized, which is fine
+    return res.status === 200 || res.status === 401;
   } catch (e) {
     return false;
   }
@@ -43,6 +49,7 @@ export async function initializeDatabase(db: any) {
       category TEXT NOT NULL,
       content TEXT NOT NULL,
       is_favorite INTEGER NOT NULL DEFAULT 0,
+      is_approved INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       synced INTEGER NOT NULL DEFAULT 1,
@@ -54,14 +61,53 @@ export async function initializeDatabase(db: any) {
       value TEXT
     );
   `);
+
+  // Safe migration to add is_approved column if it doesn't exist in local SQLite
+  try {
+    await db.execAsync(`ALTER TABLE gojols ADD COLUMN is_approved INTEGER NOT NULL DEFAULT 0;`);
+    console.log("Migration: Added is_approved column to SQLite.");
+  } catch (e) {
+    // Ignore error if column already exists
+  }
+
+  // One-time migration to approve all existing local songs
+  try {
+    const migrationDone = await db.getFirstAsync(
+      "SELECT value FROM sync_metadata WHERE key = 'approve_existing_migration'"
+    );
+    if (!migrationDone) {
+      await db.runAsync('UPDATE gojols SET is_approved = 1');
+      await db.runAsync(
+        "INSERT INTO sync_metadata (key, value) VALUES ('approve_existing_migration', 'done')"
+      );
+      console.log("Migration: Approved all existing local songs.");
+    }
+  } catch (e) {
+    console.error("Migration 'approve_existing_migration' failed:", e);
+  }
 }
 
 function GojolProviderInner({ children }: { children: React.ReactNode }) {
   const db = useSQLiteContext();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const refreshDb = useCallback(() => {
     setRefreshKey(prev => prev + 1);
+  }, []);
+
+  const authenticateAdmin = useCallback((passcode: string): boolean => {
+    const correctPasscode = process.env.EXPO_PUBLIC_ADMIN_PASSCODE || '@Admin123';
+    console.log(`[Admin Auth] Entered: "${passcode}", Expected: "${correctPasscode}"`);
+    if (passcode === correctPasscode) {
+      setIsAdmin(true);
+      return true;
+    }
+    return false;
+  }, []);
+
+  const logoutAdmin = useCallback(() => {
+    setIsAdmin(false);
   }, []);
 
   // Background Sync Engine
@@ -98,6 +144,7 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
             category: row.category,
             content: row.content,
             is_favorite: row.is_favorite === 1,
+            is_approved: row.is_approved === 1,
             created_at: row.created_at,
             updated_at: row.updated_at
           });
@@ -139,12 +186,13 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
           );
 
           const isFavoriteVal = item.is_favorite ? 1 : 0;
+          const isApprovedVal = item.is_approved ? 1 : 0;
 
           if (!localItem) {
             // New record from server
             await db.runAsync(
-              'INSERT INTO gojols (id, title, artist, category, content, is_favorite, created_at, updated_at, synced, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)',
-              [item.id, item.title, item.artist || null, item.category, item.content, isFavoriteVal, item.created_at, item.updated_at]
+              'INSERT INTO gojols (id, title, artist, category, content, is_favorite, is_approved, created_at, updated_at, synced, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)',
+              [item.id, item.title, item.artist || null, item.category, item.content, isFavoriteVal, isApprovedVal, item.created_at, item.updated_at]
             );
           } else {
             // Existing record, update if remote is newer
@@ -153,8 +201,8 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
 
             if (remoteTime > localTime) {
               await db.runAsync(
-                'UPDATE gojols SET title = ?, artist = ?, category = ?, content = ?, is_favorite = ?, created_at = ?, updated_at = ?, synced = 1, deleted = 0 WHERE id = ?',
-                [item.title, item.artist || null, item.category, item.content, isFavoriteVal, item.created_at, item.updated_at, item.id]
+                'UPDATE gojols SET title = ?, artist = ?, category = ?, content = ?, is_favorite = ?, is_approved = ?, created_at = ?, updated_at = ?, synced = 1, deleted = 0 WHERE id = ?',
+                [item.title, item.artist || null, item.category, item.content, isFavoriteVal, isApprovedVal, item.created_at, item.updated_at, item.id]
               );
             }
           }
@@ -180,9 +228,13 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
     syncData();
   }, [syncData]);
 
-  const getGojols = useCallback(async (search = '', category = 'All', favoritesOnly = false): Promise<Gojol[]> => {
+  const getGojols = useCallback(async (search = '', category = 'All', favoritesOnly = false, approvedOnly = true): Promise<Gojol[]> => {
     let query = 'SELECT * FROM gojols WHERE deleted = 0';
     const params: any[] = [];
+
+    // Filter by approval status
+    query += ' AND is_approved = ?';
+    params.push(approvedOnly ? 1 : 0);
 
     if (favoritesOnly) {
       query += ' AND is_favorite = 1';
@@ -212,13 +264,15 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
 
   const addGojol = useCallback(async (gojol: GojolInput): Promise<void> => {
     const now = new Date().toISOString();
+    // Default to approved if added in admin mode, else pending
+    const approvedVal = isAdmin ? 1 : 0;
     await db.runAsync(
-      'INSERT INTO gojols (title, artist, category, content, is_favorite, created_at, updated_at, synced, deleted) VALUES (?, ?, ?, ?, 0, ?, ?, 0, 0)',
-      [gojol.title, gojol.artist || null, gojol.category, gojol.content, now, now]
+      'INSERT INTO gojols (title, artist, category, content, is_favorite, is_approved, created_at, updated_at, synced, deleted) VALUES (?, ?, ?, ?, 0, ?, ?, ?, 0, 0)',
+      [gojol.title, gojol.artist || null, gojol.category, gojol.content, approvedVal, now, now]
     );
     refreshDb();
     syncData(); // Attempt background sync
-  }, [db, refreshDb, syncData]);
+  }, [db, refreshDb, syncData, isAdmin]);
 
   const updateGojol = useCallback(async (id: number, gojol: Partial<GojolInput>): Promise<void> => {
     const fieldsToUpdate: string[] = [];
@@ -277,6 +331,68 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
     syncData(); // Attempt background sync
   }, [db, refreshDb, syncData]);
 
+  const approveGojol = useCallback(async (id: number): Promise<void> => {
+    await db.runAsync(
+      'UPDATE gojols SET is_approved = 1, synced = 0, updated_at = ? WHERE id = ?',
+      [new Date().toISOString(), id]
+    );
+    refreshDb();
+    syncData(); // Sync to cloud
+  }, [db, refreshDb, syncData]);
+
+  const exportDatabase = useCallback(async (): Promise<string> => {
+    const all = await db.getAllAsync<Gojol>('SELECT * FROM gojols WHERE deleted = 0');
+    return JSON.stringify(all, null, 2);
+  }, [db]);
+
+  const importDatabase = useCallback(async (jsonString: string): Promise<{ success: boolean; count: number }> => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!Array.isArray(parsed)) {
+        throw new Error("Backup file must contain an array of gojols.");
+      }
+
+      console.log(`Importing ${parsed.length} gojols...`);
+      let count = 0;
+      
+      for (const item of parsed) {
+        if (!item.title || !item.content) continue; // Basic validation
+        
+        const now = new Date().toISOString();
+        const favVal = item.is_favorite ? 1 : 0;
+        const appVal = item.is_approved ? 1 : 0;
+
+        let exists = false;
+        if (item.id) {
+          const localItem = await db.getFirstAsync<{ id: number }>('SELECT id FROM gojols WHERE id = ?', [item.id]);
+          exists = !!localItem;
+        }
+
+        if (exists && item.id) {
+          // Update
+          await db.runAsync(
+            'UPDATE gojols SET title = ?, artist = ?, category = ?, content = ?, is_favorite = ?, is_approved = ?, updated_at = ?, synced = 0, deleted = 0 WHERE id = ?',
+            [item.title, item.artist || null, item.category || 'General', item.content, favVal, appVal, now, item.id]
+          );
+        } else {
+          // Insert
+          await db.runAsync(
+            'INSERT INTO gojols (title, artist, category, content, is_favorite, is_approved, created_at, updated_at, synced, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)',
+            [item.title, item.artist || null, item.category || 'General', item.content, favVal, appVal, item.created_at || now, now]
+          );
+        }
+        count++;
+      }
+      
+      refreshDb();
+      syncData(); // Trigger background sync to upload imported items to Supabase
+      return { success: true, count };
+    } catch (e) {
+      console.error("Failed to import database:", e);
+      throw e;
+    }
+  }, [db, refreshDb, syncData]);
+
   return (
     <GojolContext.Provider value={{
       refreshKey,
@@ -287,7 +403,13 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
       updateGojol,
       deleteGojol,
       toggleFavorite,
-      syncData
+      approveGojol,
+      isAdmin,
+      authenticateAdmin,
+      logoutAdmin,
+      syncData,
+      exportDatabase,
+      importDatabase
     }}>
       {children}
     </GojolContext.Provider>

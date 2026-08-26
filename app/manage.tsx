@@ -3,7 +3,6 @@ import { StyleSheet, ScrollView, Text, View, TextInput, Pressable, Alert, Keyboa
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { Save, ChevronLeft } from 'lucide-react-native';
 import { useGojolDb } from '@/db/GojolContext';
-import { CATEGORIES } from '@/constants/Categories';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 
@@ -28,6 +27,7 @@ export default function ManageGojolScreen() {
     async function loadGojol() {
       if (!gojolId) return;
       try {
+        setIsLoading(true);
         const gojol = await getGojolById(gojolId);
         if (gojol) {
           setTitle(gojol.title);
@@ -125,8 +125,10 @@ export default function ManageGojolScreen() {
               { 
                 color: colors.text, 
                 backgroundColor: colors.cardBackground, 
-                borderColor: errors.title ? colors.favoriteActive : colors.border 
-              }
+                borderWidth: errors.title ? 1 : 0,
+                borderColor: colors.favoriteActive,
+                outlineStyle: 'none'
+              } as any
             ]}
             value={title}
             onChangeText={(text) => {
@@ -148,8 +150,9 @@ export default function ManageGojolScreen() {
               { 
                 color: colors.text, 
                 backgroundColor: colors.cardBackground, 
-                borderColor: colors.border 
-              }
+                borderWidth: 0,
+                outlineStyle: 'none'
+              } as any
             ]}
             value={artist}
             onChangeText={setArtist}
@@ -157,8 +160,6 @@ export default function ManageGojolScreen() {
             placeholderTextColor={colors.textSecondary}
           />
         </View>
-
-
 
         {/* Content/Lyrics Input */}
         <View style={styles.inputGroup}>
@@ -169,8 +170,10 @@ export default function ManageGojolScreen() {
               { 
                 color: colors.text, 
                 backgroundColor: colors.cardBackground, 
-                borderColor: errors.content ? colors.favoriteActive : colors.border 
-              }
+                borderWidth: errors.content ? 1 : 0,
+                borderColor: colors.favoriteActive,
+                outlineStyle: 'none'
+              } as any
             ]}
             value={content}
             onChangeText={(text) => {
@@ -225,38 +228,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 16,
     height: 48,
     fontSize: 15,
     fontFamily: 'System',
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryItemText: {
-    fontSize: 14,
-    fontFamily: 'System',
+    // Soft premium shadow
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   textArea: {
-    borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 16,
     minHeight: 240,
     fontSize: 15,
     fontFamily: 'System',
     lineHeight: 22,
+    // Soft premium shadow
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   errorText: {
     fontSize: 12,

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, Text, View, Pressable, Share, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { Share2, Edit3, Trash2, ZoomIn, ZoomOut, Heart } from 'lucide-react-native';
+import { Share2, Edit3, Trash2, ZoomIn, ZoomOut, Heart, Check, X } from 'lucide-react-native';
 import { useGojolDb } from '@/db/GojolContext';
 import { Gojol } from '@/db/types';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -13,7 +13,7 @@ export default function DetailScreen() {
 
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
-  const { getGojolById, deleteGojol, toggleFavorite, refreshKey } = useGojolDb();
+  const { getGojolById, deleteGojol, toggleFavorite, approveGojol, isAdmin, refreshKey } = useGojolDb();
 
   const [gojol, setGojol] = useState<Gojol | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,11 +76,11 @@ export default function DetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteGojol(gojol.id);
-              router.back();
+               await deleteGojol(gojol.id);
+               router.back();
             } catch (error) {
-              console.error('Failed to delete gojol:', error);
-              Alert.alert('Error', 'Failed to delete Gojol');
+               console.error('Failed to delete gojol:', error);
+               Alert.alert('Error', 'Failed to delete Gojol');
             }
           },
         },
@@ -93,10 +93,45 @@ export default function DetailScreen() {
     try {
       const newFavStatus = gojol.is_favorite === 1 ? false : true;
       await toggleFavorite(gojol.id, newFavStatus);
-      // Let standard useEffect refresh the detail screen via refreshKey
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
     }
+  };
+
+  const handleApprove = async () => {
+    if (!gojol) return;
+    try {
+      await approveGojol(gojol.id);
+      Alert.alert('Success', 'Submission approved and published!');
+      router.back();
+    } catch (error) {
+      console.error('Failed to approve:', error);
+      Alert.alert('Error', 'Failed to approve submission');
+    }
+  };
+
+  const handleReject = () => {
+    if (!gojol) return;
+    Alert.alert(
+      'Reject Submission',
+      'Are you sure you want to reject and delete this submission?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject & Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteGojol(gojol.id);
+              router.back();
+            } catch (error) {
+              console.error('Failed to reject:', error);
+              Alert.alert('Error', 'Failed to reject submission');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading) {
@@ -123,6 +158,8 @@ export default function DetailScreen() {
     );
   }
 
+  const showModerationBar = isAdmin && gojol.is_approved === 0;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Configures Stack Header Actions */}
@@ -134,18 +171,28 @@ export default function DetailScreen() {
               <Pressable onPress={handleShare} style={styles.headerBtn} hitSlop={6}>
                 <Share2 size={20} color={colors.text} />
               </Pressable>
-              <Pressable onPress={handleEdit} style={styles.headerBtn} hitSlop={6}>
-                <Edit3 size={20} color={colors.text} />
-              </Pressable>
-              <Pressable onPress={handleDelete} style={styles.headerBtn} hitSlop={6}>
-                <Trash2 size={20} color={colors.favoriteActive} />
-              </Pressable>
+              {isAdmin && (
+                <>
+                  <Pressable onPress={handleEdit} style={styles.headerBtn} hitSlop={6}>
+                    <Edit3 size={20} color={colors.text} />
+                  </Pressable>
+                  <Pressable onPress={handleDelete} style={styles.headerBtn} hitSlop={6}>
+                    <Trash2 size={20} color={colors.favoriteActive} />
+                  </Pressable>
+                </>
+              )}
             </View>
           ),
         }}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent, 
+          { paddingBottom: showModerationBar ? 160 : 100 }
+        ]} 
+        showsVerticalScrollIndicator={false}
+      >
         {/* Gojol Metadata Info */}
         <View style={styles.metaContainer}>
           <Text style={[styles.title, { color: colors.text }]}>{gojol.title}</Text>
@@ -157,19 +204,20 @@ export default function DetailScreen() {
                   By {gojol.artist}
                 </Text>
               ) : null}
-
             </View>
             
-            <Pressable
-              onPress={handleFavoriteToggle}
-              style={[styles.favCircle, { borderColor: colors.border }]}
-            >
-              <Heart
-                size={20}
-                color={gojol.is_favorite === 1 ? colors.favoriteActive : colors.textSecondary}
-                fill={gojol.is_favorite === 1 ? colors.favoriteActive : 'transparent'}
-              />
-            </Pressable>
+            {gojol.is_approved === 1 && (
+              <Pressable
+                onPress={handleFavoriteToggle}
+                style={[styles.favCircle, { borderColor: colors.border }]}
+              >
+                <Heart
+                  size={20}
+                  color={gojol.is_favorite === 1 ? colors.favoriteActive : colors.textSecondary}
+                  fill={gojol.is_favorite === 1 ? colors.favoriteActive : 'transparent'}
+                />
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -193,7 +241,14 @@ export default function DetailScreen() {
       </ScrollView>
 
       {/* Floating Font Size Customizer Overlay */}
-      <View style={[styles.floatingControls, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+      <View style={[
+        styles.floatingControls, 
+        { 
+          backgroundColor: colors.cardBackground, 
+          borderColor: colors.border,
+          bottom: showModerationBar ? 92 : 24
+        }
+      ]}>
         <Pressable onPress={handleDecreaseFont} style={styles.controlBtn}>
           <ZoomOut size={20} color={colors.text} />
           <Text style={[styles.controlBtnText, { color: colors.text }]}>A-</Text>
@@ -204,6 +259,27 @@ export default function DetailScreen() {
           <Text style={[styles.controlBtnText, { color: colors.text }]}>A+</Text>
         </Pressable>
       </View>
+
+      {/* Moderation Approval Bar */}
+      {showModerationBar && (
+        <View style={[styles.moderationBar, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <Pressable
+            onPress={handleReject}
+            style={[styles.modBtn, { backgroundColor: colors.background }]}
+          >
+            <X size={18} color={colors.favoriteActive} />
+            <Text style={[styles.modBtnText, { color: colors.favoriteActive }]}>Reject</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleApprove}
+            style={[styles.modBtn, { backgroundColor: colors.tint }]}
+          >
+            <Check size={18} color="#FFFFFF" />
+            <Text style={[styles.modBtnText, { color: '#FFFFFF' }]}>Approve</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -249,7 +325,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100, // Account for floating font controls
   },
   metaContainer: {
     marginBottom: 16,
@@ -278,16 +353,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: 'System',
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
   favCircle: {
     width: 40,
     height: 40,
@@ -311,7 +376,6 @@ const styles = StyleSheet.create({
   },
   floatingControls: {
     position: 'absolute',
-    bottom: 24,
     left: '25%',
     right: '25%',
     height: 48,
@@ -341,5 +405,41 @@ const styles = StyleSheet.create({
   controlDivider: {
     width: 1,
     height: 24,
+  },
+  // Moderation Bar Styles
+  moderationBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 72,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  modBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

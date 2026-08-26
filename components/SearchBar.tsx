@@ -15,10 +15,10 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Search b
   const colors = Colors[colorScheme];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-      <Search size={20} color={colors.textSecondary} style={styles.searchIcon} />
+    <View style={[styles.container, { backgroundColor: colors.cardBackground }]}>
+      <Search size={18} color={colors.textSecondary} style={styles.searchIcon} />
       <TextInput
-        style={[styles.input, { color: colors.text }]}
+        style={[styles.input, { color: colors.text, outlineStyle: 'none' } as any]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -27,7 +27,7 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Search b
         autoCorrect={false}
       />
       {value.length > 0 && (
-        <Pressable onPress={() => onChangeText('')} style={styles.clearButton}>
+        <Pressable onPress={() => onChangeText('')} style={styles.clearButton} hitSlop={6}>
           <X size={18} color={colors.textSecondary} />
         </Pressable>
       )}
@@ -39,29 +39,29 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    borderRadius: 14,
+    paddingHorizontal: 16,
     height: 48,
     marginHorizontal: 16,
     marginVertical: 12,
-    // Shadow
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    // Soft premium shadow without border
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'System',
     paddingVertical: 8,
   },
   clearButton: {
-    padding: 4,
+    padding: 2,
   },
 });
