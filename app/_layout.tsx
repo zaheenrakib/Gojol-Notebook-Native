@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { GojolDatabaseProvider } from '@/db/GojolContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -39,7 +40,11 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <GojolDatabaseProvider>
+      <RootLayoutNav />
+    </GojolDatabaseProvider>
+  );
 }
 
 function RootLayoutNav() {
@@ -49,8 +54,23 @@ function RootLayoutNav() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="detail" 
+          options={{ 
+            title: 'Gojol Details',
+            headerShadowVisible: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="manage" 
+          options={{ 
+            title: 'Manage Gojol',
+            headerShadowVisible: false,
+          }} 
+        />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );
 }
+

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { Plus, Music } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { Heart } from 'lucide-react-native';
 import { useGojolDb } from '@/db/GojolContext';
 import { Gojol } from '@/db/types';
 import SearchBar from '@/components/SearchBar';
@@ -11,7 +10,7 @@ import GojolCard from '@/components/GojolCard';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 
-export default function HomeScreen() {
+export default function FavoritesScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const { getGojols, refreshKey } = useGojolDb();
@@ -26,12 +25,12 @@ export default function HomeScreen() {
     async function loadGojols() {
       try {
         setIsLoading(true);
-        const data = await getGojols(searchQuery, selectedCategory, false);
+        const data = await getGojols(searchQuery, selectedCategory, true);
         if (active) {
           setGojols(data);
         }
       } catch (error) {
-        console.error('Failed to load gojols:', error);
+        console.error('Failed to load favorite gojols:', error);
       } finally {
         if (active) {
           setIsLoading(false);
@@ -48,12 +47,12 @@ export default function HomeScreen() {
     if (isLoading) return null;
     return (
       <View style={styles.emptyContainer}>
-        <Music size={48} color={colors.textSecondary} style={{ marginBottom: 12, opacity: 0.5 }} />
-        <Text style={[styles.emptyText, { color: colors.text }]}>No Gojols Found</Text>
+        <Heart size={48} color={colors.favoriteActive} style={{ marginBottom: 12, opacity: 0.5 }} />
+        <Text style={[styles.emptyText, { color: colors.text }]}>No Favorites Yet</Text>
         <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
           {searchQuery || selectedCategory !== 'All'
             ? 'Try adjusting your search query or category filters.'
-            : 'Get started by creating your very first Gojol lyrics notebook!'}
+            : 'Tap the heart icon on any Gojol to save it to your favorites list.'}
         </Text>
         {searchQuery || selectedCategory !== 'All' ? (
           <Pressable
@@ -73,7 +72,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header Search & Filter */}
-      <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
+      <SearchBar value={searchQuery} onChangeText={setSearchQuery} placeholder="Search favorites..." />
       <CategoryPills
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
@@ -93,14 +92,6 @@ export default function HomeScreen() {
           contentContainerStyle={styles.listContent}
         />
       )}
-
-      {/* Floating Action Button (FAB) */}
-      <Pressable
-        style={[styles.fab, { backgroundColor: colors.tint }]}
-        onPress={() => router.push('/manage')}
-      >
-        <Plus size={24} color="#FFFFFF" />
-      </Pressable>
     </View>
   );
 }
@@ -115,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    paddingBottom: 88, // Space for FAB and TabBar
+    paddingBottom: 24,
   },
   emptyContainer: {
     flex: 1,
@@ -146,20 +137,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
   },
 });
