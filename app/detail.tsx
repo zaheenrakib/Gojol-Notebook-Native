@@ -152,18 +152,12 @@ export default function DetailScreen() {
           
           <View style={styles.metaRow}>
             <View style={styles.metaLeft}>
-              {gojol.artist ? (
+              {gojol.artist && gojol.artist.trim() !== '' ? (
                 <Text style={[styles.artist, { color: colors.textSecondary }]}>
                   By {gojol.artist}
                 </Text>
-              ) : (
-                <Text style={[styles.artist, { color: colors.textSecondary }]}>
-                  Unknown Artist
-                </Text>
-              )}
-              <View style={[styles.badge, { backgroundColor: colors.badgeBackground }]}>
-                <Text style={[styles.badgeText, { color: colors.tint }]}>{gojol.category}</Text>
-              </View>
+              ) : null}
+
             </View>
             
             <Pressable

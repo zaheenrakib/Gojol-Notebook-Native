@@ -18,7 +18,7 @@ export default function ManageGojolScreen() {
 
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
-  const [category, setCategory] = useState<string>('Hamd');
+  const [category, setCategory] = useState<string>('General');
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(isEditMode);
   
@@ -153,45 +153,12 @@ export default function ManageGojolScreen() {
             ]}
             value={artist}
             onChangeText={setArtist}
-            placeholder="e.g., কবি মতিউর রহমান মল্লিক"
+            placeholder="e.g., Abul Hasan Cristy"
             placeholderTextColor={colors.textSecondary}
           />
         </View>
 
-        {/* Category Choice */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }]}>Category</Text>
-          <View style={styles.categoryContainer}>
-            {CATEGORIES.map((cat) => {
-              const isSelected = category === cat;
-              return (
-                <Pressable
-                  key={cat}
-                  onPress={() => setCategory(cat)}
-                  style={[
-                    styles.categoryItem,
-                    {
-                      backgroundColor: isSelected ? colors.tint : colors.cardBackground,
-                      borderColor: isSelected ? colors.tint : colors.border,
-                    }
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.categoryItemText,
-                      {
-                        color: isSelected ? '#FFFFFF' : colors.text,
-                        fontWeight: isSelected ? '600' : '400',
-                      }
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+
 
         {/* Content/Lyrics Input */}
         <View style={styles.inputGroup}>

@@ -29,6 +29,9 @@ export default function GojolCard({ item }: GojolCardProps) {
     await toggleFavorite(item.id, newFavStatus);
   };
 
+  // Get the first character of the title for a premium avatar look
+  const firstLetter = item.title ? item.title.trim().charAt(0) : 'গ';
+
   return (
     <Pressable
       onPress={handlePress}
@@ -38,44 +41,49 @@ export default function GojolCard({ item }: GojolCardProps) {
           backgroundColor: colors.cardBackground,
           borderColor: colors.border,
           shadowColor: colors.shadowColor,
-          opacity: pressed ? 0.95 : 1,
-          transform: [{ scale: pressed ? 0.99 : 1 }],
+          opacity: pressed ? 0.96 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
         },
       ]}
     >
-      <View style={styles.cardHeader}>
-        <View style={styles.titleContainer}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            {item.title}
+      <View style={styles.cardLayout}>
+        {/* First Letter Avatar Circle */}
+        <View style={[styles.avatarCircle, { backgroundColor: colors.badgeBackground }]}>
+          <Text style={[styles.avatarText, { color: colors.tint }]}>
+            {firstLetter}
           </Text>
-          {item.artist ? (
-            <Text style={[styles.artist, { color: colors.textSecondary }]} numberOfLines={1}>
-              {item.artist}
-            </Text>
-          ) : null}
         </View>
-        
-        <Pressable
-          onPress={handleFavoritePress}
-          hitSlop={8}
-          style={styles.favoriteButton}
-        >
-          <Heart
-            size={22}
-            color={item.is_favorite === 1 ? colors.favoriteActive : colors.tabIconDefault}
-            fill={item.is_favorite === 1 ? colors.favoriteActive : 'transparent'}
-          />
-        </Pressable>
-      </View>
 
-      <Text style={[styles.previewText, { color: colors.textSecondary }]} numberOfLines={2}>
-        {item.content}
-      </Text>
+        {/* Content Column */}
+        <View style={styles.mainContent}>
+          <View style={styles.cardHeader}>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+                {item.title}
+              </Text>
+              {item.artist && item.artist.trim() !== '' ? (
+                <Text style={[styles.artist, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {item.artist}
+                </Text>
+              ) : null}
+            </View>
+            
+            <Pressable
+              onPress={handleFavoritePress}
+              hitSlop={10}
+              style={styles.favoriteButton}
+            >
+              <Heart
+                size={20}
+                color={item.is_favorite === 1 ? colors.favoriteActive : colors.tabIconDefault}
+                fill={item.is_favorite === 1 ? colors.favoriteActive : 'transparent'}
+              />
+            </Pressable>
+          </View>
 
-      <View style={styles.cardFooter}>
-        <View style={[styles.badge, { backgroundColor: colors.badgeBackground }]}>
-          <Text style={[styles.badgeText, { color: colors.tint }]}>
-            {item.category}
+          {/* Lyrics Preview */}
+          <Text style={[styles.previewText, { color: colors.textSecondary }]} numberOfLines={2}>
+            {item.content ? item.content.replace(/\r\n/g, '\n') : ''}
           </Text>
         </View>
       </View>
@@ -85,60 +93,66 @@ export default function GojolCard({ item }: GojolCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 16,
     marginHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 14,
+    // Soft shadow for premium look
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  cardLayout: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  mainContent: {
+    flex: 1,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   titleContainer: {
     flex: 1,
     paddingRight: 8,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     fontFamily: 'System',
-    marginBottom: 2,
+    marginBottom: 3,
+    letterSpacing: 0.1,
   },
   artist: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'System',
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   favoriteButton: {
-    padding: 4,
-    alignSelf: 'flex-start',
+    padding: 2,
+    marginTop: -2,
   },
   previewText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
     fontFamily: 'System',
-    marginBottom: 12,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
 });
