@@ -4,7 +4,7 @@
     "slug": "gojol-notebook",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.jpg",
+    "icon": "./assets/images/icon.png",
     "scheme": "gojolnotebook",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -12,19 +12,20 @@
     },
     "android": {
       "backgroundColor": "#063c2e",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.zaheenrakib.gojolnotebook"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.jpg"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.jpg",
+          "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
           "backgroundColor": "#063c2e"
         }
@@ -34,6 +35,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "75f0bfe1-a6b4-4c6f-8fd1-7fac5d01852d"
+      }
     }
   }
 }
