@@ -91,6 +91,14 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
   const db = useSQLiteContext();
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const isMountedRef = React.useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const refreshDb = useCallback(() => {
     setRefreshKey(prev => prev + 1);
@@ -113,6 +121,7 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
   // Background Sync Engine
   const syncData = useCallback(async () => {
     const online = await isOnline();
+    if (!isMountedRef.current) return;
     if (!online) {
       console.log("App is offline, skipping sync.");
       return;
@@ -122,11 +131,13 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
       console.log("Starting database sync...");
 
       // 1. PUSH local changes to Supabase (where synced = 0)
+      if (!isMountedRef.current) return;
       const unsynced = await db.getAllAsync<any>(
         'SELECT * FROM gojols WHERE synced = 0'
       );
 
       for (const row of unsynced) {
+        if (!isMountedRef.current) return;
         if (row.deleted === 1) {
           // Soft deleted locally, hard delete on Supabase
           const { error } = await supabase.from('gojols').delete().eq('id', row.id);
@@ -218,8 +229,12 @@ function GojolProviderInner({ children }: { children: React.ReactNode }) {
 
       console.log("Database sync completed.");
       refreshDb();
-    } catch (e) {
-      console.error("Sync error:", e);
+    } catch (e: any) {
+      if (isMountedRef.current) {
+        console.error("Sync error:", e);
+      } else {
+        console.log("Sync cancelled: Database connection closed or component unmounted.");
+      }
     }
   }, [db, refreshDb]);
 
